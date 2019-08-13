@@ -17,25 +17,30 @@ def evaluate(exp, env)
   when "+"
     evaluate(exp[1], env) + evaluate(exp[2], env)
   when "-"
-    # Subtraction.  Please fill in.
-    # Use the code above for addition as a reference.
-    # (Almost just copy-and-paste.  This is an exercise.)
-    raise(NotImplementedError) # Problem 1
+    evaluate(exp[1], env) - evaluate(exp[2], env)
   when "*"
-    raise(NotImplementedError) # Problem 1
+    evaluate(exp[1], env) * evaluate(exp[2], env)
+  when "/"
+    evaluate(exp[1], env) / evaluate(exp[2], env)
+  when "%"
+    evaluate(exp[1], env) % evaluate(exp[2], env)
+  when "=="
+    evaluate(exp[1], env) == evaluate(exp[2], env)
+  when "!="
+    evaluate(exp[1], env) != evaluate(exp[2], env)
+  when "<"
+    evaluate(exp[1], env) < evaluate(exp[2], env)
+  when ">"
+    evaluate(exp[1], env) > evaluate(exp[2], env)
   # ... Implement other operators that you need
 
-  
+
 #
 ## Problem 2: Statements and variables
 #
 
   when "stmts"
-    # Statements: sequential evaluation of one or more expressions.
-    #
-    # Advice 1: Insert `pp(exp)` and observe the AST first.
-    # Advice 2: Apply `evaluate` to each child of this node.
-    raise(NotImplementedError) # Problem 2
+    exp.drop(1).inject(nil) {|_, exp| evaluate(exp, env)}
 
   # The second argument of this method, `env`, is an "environement" that
   # keeps track of the values stored to variables.
@@ -43,16 +48,10 @@ def evaluate(exp, env)
   # value stored to the corresponded variable.
 
   when "var_ref"
-    # Variable reference: lookup the value corresponded to the variable
-    #
-    # Advice: env[???]
-    raise(NotImplementedError) # Problem 2
+    env[exp[1]]
 
   when "var_assign"
-    # Variable assignment: store (or overwrite) the value to the environment
-    #
-    # Advice: env[???] = ???
-    raise(NotImplementedError) # Problem 2
+    env[exp[1]] = evaluate(exp[2], env)
 
 
 #
@@ -60,21 +59,16 @@ def evaluate(exp, env)
 #
 
   when "if"
-    # Branch.  It evaluates either exp[2] or exp[3] depending upon the
-    # evaluation result of exp[1],
-    #
-    # Advice:
-    #   if ???
-    #     ???
-    #   else
-    #     ???
-    #   end
-    raise(NotImplementedError) # Problem 3
+    if evaluate(exp[1], env)
+      evaluate(exp[2], env)
+    else
+      evaluate(exp[3], env)
+    end
 
   when "while"
-    # Loop.
-    raise(NotImplementedError) # Problem 3
-
+    while evaluate(exp[1], env)
+      evaluate(exp[2], env)
+    end
 
 #
 ## Problem 4: Function calls
@@ -92,7 +86,8 @@ def evaluate(exp, env)
       when "p"
         # MinRuby's `p` method is implemented by Ruby's `p` method.
         p(evaluate(exp[2], env))
-      # ... Problem 4
+      when "Integer"
+        Integer(evaluate(exp[2], env))
       else
         raise("unknown builtin function")
       end
@@ -102,37 +97,15 @@ def evaluate(exp, env)
 #
 ## Problem 5: Function definition
 #
-
-      # (You may want to implement "func_def" first.)
-      #
-      # Here, we could find a user-defined function definition.
-      # The variable `func` should be a value that was stored at "func_def":
-      # a parameter list and an AST of function body.
-      #
-      # A function call evaluates the AST of function body within a new scope.
-      # You know, you cannot access a varible out of function.
-      # Therefore, you need to create a new environment, and evaluate the
-      # function body under the environment.
-      #
-      # Note, you can access formal parameters (*1) in function body.
-      # So, the new environment must be initialized with each parameter.
-      #
-      # (*1) formal parameter: a variable as found in the function definition.
-      # For example, `a`, `b`, and `c` are the formal parameters of
-      # `def foo(a, b, c)`.
-      raise(NotImplementedError) # Problem 5
+      new_env = env.clone()
+      exp.drop(2).zip(func[2]).each do |exp, name|
+        new_env[name] = evaluate(exp, env)
+      end
+      evaluate(func[3], new_env)
     end
 
   when "func_def"
-    # Function definition.
-    #
-    # Add a new function definition to function definition list.
-    # The AST of "func_def" contains function name, parameter list, and the
-    # child AST of function body.
-    # All you need is store them into $function_definitions.
-    #
-    # Advice: $function_definitions[???] = ???
-    raise(NotImplementedError) # Problem 5
+    $function_definitions[exp[1]] = exp
 
 
 #
@@ -141,16 +114,26 @@ def evaluate(exp, env)
 
   # You don't need advices anymore, do you?
   when "ary_new"
-    raise(NotImplementedError) # Problem 6
+    exp.drop(1).collect {|exp| evaluate(exp, env)}
 
   when "ary_ref"
-    raise(NotImplementedError) # Problem 6
+    arr = evaluate(exp[1], env)
+    index = evaluate(exp[2], env)
+    arr[index]
 
   when "ary_assign"
-    raise(NotImplementedError) # Problem 6
+    arr = evaluate(exp[1], env)
+    index = evaluate(exp[2], env)
+    value = evaluate(exp[3], env)
+    arr[index] = value
 
   when "hash_new"
-    raise(NotImplementedError) # Problem 6
+    exp.drop(1).each_cons(2).inject({}) do |h, x|
+      index = evaluate(x[0], env)
+      value = evaluate(x[1], env)
+      h[index] = value
+      h
+    end
 
   else
     p("error")
@@ -165,4 +148,6 @@ env = {}
 
 # `minruby_load()` == `File.read(ARGV.shift)`
 # `minruby_parse(str)` parses a program text given, and returns its AST
-evaluate(minruby_parse(minruby_load()), env)
+ast = minruby_parse(minruby_load())
+p ast
+evaluate(ast, env)
